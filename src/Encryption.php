@@ -182,7 +182,7 @@ class Encryption {
    */
   private function _loadLegacyKey():string {
     $prj_root = $this->_getProjectRoot();
-    $key_file = $prj_root . '/.system/appdata/tymfrontiers-cdn/php-data/data.key';
+    $key_file = $prj_root . '/.system/appdata/timefrontiers/php-data/data.key';
 
     if (\file_exists($key_file) && \is_readable($key_file)) {
       $key = self::_readKeyFile($key_file);
