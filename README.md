@@ -48,10 +48,11 @@ $original = Signer::verify($signed);
 | `Password` | Modern password hashing (Argon2ID) |
 | `Random` | Cryptographically secure random generation |
 | `Signer` | HMAC-SHA256 string signing |
-| `Text` | String manipulation utilities |
 | `ByteConverter` | Size unit conversions |
-| `Output` | JSON/response formatting |
-| `Data` | Legacy facade (backward compatibility) |
+
+> String manipulation, HTTP responses, and phone utilities now live in
+> [`timefrontiers/php-core`](../php-core) (`Str`, `Http\Http`, `Phone`). This
+> package is focused strictly on data-manipulation primitives.
 
 ---
 
@@ -65,14 +66,14 @@ use TimeFrontiers\Data\Encryption;
 // Option 1: Provide key file path
 $enc = new Encryption('/secure/path/encryption.key');
 
-// Option 2: Provide raw key
+// Option 2: Provide raw base64 key
 $enc = new Encryption('base64-encoded-key-here');
-
-// Option 3: Legacy fallback (reads from PRJ_ROOT/.system/appdata/.../data.key)
-$enc = new Encryption();
 ```
 
-### Static Configuration (for legacy code)
+A key **must** be supplied. There is no implicit fallback path — calling
+`new Encryption()` without a prior `setKeyFile()` will throw.
+
+### Static Configuration
 
 ```php
 // Configure once at bootstrap
@@ -165,14 +166,6 @@ Password::configure(Password::ALGO_ARGON2ID, [
 ]);
 ```
 
-### Legacy Compatibility
-
-```php
-// Verify against legacy crypt() hashes
-// password_verify() handles both old and new formats
-$valid = Password::verify($password, $legacy_hash);
-```
-
 ---
 
 ## Random
@@ -245,39 +238,6 @@ $signed = Signer::sign($data, 'different-key');
 
 ---
 
-## Text
-
-```php
-use TimeFrontiers\Data\Text;
-
-// Truncate at word boundary
-Text::truncate('Long text here...', 100);
-
-// Chunk string
-Text::chunk('1234567890', 3, '-');  // "123-456-789-0"
-
-// Slug
-Text::slug('Hello World!');  // "hello-world"
-
-// Case conversion
-Text::toCamelCase('user_name');      // "userName"
-Text::toPascalCase('user_name');     // "UserName"
-Text::toSnakeCase('userName');       // "user_name"
-Text::toKebabCase('userName');       // "user-name"
-
-// Mask sensitive data
-Text::mask('1234567890', 3, 3);  // "123****890"
-
-// Excerpt (strips HTML, normalizes whitespace)
-Text::excerpt($html_content, 200);
-
-// Word count and limit
-Text::wordCount($text);
-Text::limitWords($text, 50);
-```
-
----
-
 ## ByteConverter
 
 ```php
@@ -304,77 +264,14 @@ ByteConverter::parse('1.5 GB');                 // 1610612736
 
 ---
 
-## Output
+## Security defaults
 
-```php
-use TimeFrontiers\Data\Output;
-
-// JSON output
-Output::json(['status' => 'ok']);
-$json = Output::json($data, return: true);
-
-// JSONP
-Output::jsonp($data, 'callback');
-
-// Standardized API response
-$response = Output::success('User created', $user_data);
-$response = Output::error('Validation failed', $errors);
-
-// Exit helpers
-Output::jsonExit($data, 200);
-Output::successExit('Done', $data);
-Output::errorExit('Failed', $errors, 400);
-```
-
----
-
-## Legacy Facade
-
-For backward compatibility with existing code:
-
-```php
-use TimeFrontiers\Data\Data;
-
-// Configure at bootstrap
-Data::setKeyFile('/secure/path/encryption.key');
-Data::setSigningKey('your-signing-key');
-
-// Then use legacy methods
-$encrypted = Data::encrypt($data);
-$hash = Data::pwdHash($password);
-$code = Data::uniqueRand('', 6, Data::RAND_MIXED);
-$signed = Data::signString($data);
-```
-
-All legacy methods are marked `@deprecated` with guidance to use the new classes.
-
----
-
-## Migration Guide
-
-| Old (x) | New (v1) |
-|----------|----------|
-| `Data::encrypt()` | `Encryption::encrypt()` or `Encryption::enc()` |
-| `Data::decrypt()` | `Encryption::decrypt()` or `Encryption::dec()` |
-| `Data::pwdHash()` | `Password::hash()` |
-| `Data::pwdCheck()` | `Password::verify()` |
-| `Data::uniqueRand()` | `Random::alphanumeric()` |
-| `Data::genCode()` | `Random::numeric()` |
-| `Data::signString()` | `Signer::sign()` |
-| `Data::isSignString()` | `Signer::verify()` |
-| `Data::getLen()` | `Text::truncate()` |
-| `Data::charSplit()` | `Text::chunk()` |
-| `Data::toByte()` | `ByteConverter::toBytes()` |
-| `Data::outprint()` | `Output::json()` |
-
-### Security Improvements in v1
-
-| Feature | vx | v1 |
-|---------|----|----|
-| Random generation | `mt_rand()` | `random_int()` (CSPRNG) |
-| String signing | SHA1 | HMAC-SHA256 |
-| Password hashing | `crypt()` bcrypt | `password_hash()` Argon2ID |
-| Key storage | Fixed path | Configurable |
+| Primitive | Algorithm |
+|-----------|-----------|
+| Random generation | `random_int()` / `random_bytes()` (CSPRNG) |
+| String signing | HMAC-SHA256 |
+| Password hashing | `password_hash()` with Argon2ID (bcrypt configurable) |
+| Encryption | AES-256-CBC with random IV per message |
 
 ## License
 

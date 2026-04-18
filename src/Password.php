@@ -121,42 +121,4 @@ class Password {
       'new_hash' => null,
     ];
   }
-
-  // === Legacy compatibility ===
-
-  /**
-   * Legacy hash method (bcrypt via crypt).
-   *
-   * @deprecated Use hash() instead
-   */
-  public static function legacyHash(string $password):string {
-    $salt = Random::base64(22);
-    $salt = \str_replace('+', '.', $salt);
-    return \crypt($password, '$2y$10$' . $salt);
-  }
-
-  /**
-   * Legacy verify method.
-   *
-   * @deprecated Use verify() instead
-   */
-  public static function legacyVerify(string $password, string $hash):bool {
-    return \hash_equals($hash, \crypt($password, $hash));
-  }
-
-  /**
-   * Check if a hash is in legacy format.
-   */
-  public static function isLegacyHash(string $hash):bool {
-    // Legacy bcrypt hashes start with $2y$, $2a$, or $2b$
-    // Modern password_hash also uses these, but we can check
-    // if password_get_info recognizes it
-    $info = \password_get_info($hash);
-
-    // If algo is 0 (unknown), it might be a legacy crypt hash
-    // But bcrypt via password_hash also uses $2y$
-    // So we can't reliably distinguish - just use password_verify
-    // which handles both
-    return false;
-  }
 }

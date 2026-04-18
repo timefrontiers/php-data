@@ -116,38 +116,4 @@ class Signer {
 
     return self::$_key;
   }
-
-  // === Legacy compatibility ===
-
-  /**
-   * Legacy sign method (SHA1-based).
-   *
-   * @deprecated Use sign() instead
-   */
-  public static function legacySign(string $data, string $salt = ''):string {
-    $salt = $salt ?: 'cHuRa#abrasp7!aSteMUK'; // Original default salt
-    $checksum = \sha1($data . $salt);
-
-    return $data . self::SEPARATOR . $checksum;
-  }
-
-  /**
-   * Legacy verify method (SHA1-based).
-   *
-   * @deprecated Use verify() instead
-   */
-  public static function legacyVerify(string $signed_string, string $salt = ''):string|false {
-    $parts = \explode(self::SEPARATOR, $signed_string);
-    if (\count($parts) !== 2) {
-      return false;
-    }
-
-    $new_signed = self::legacySign($parts[0], $salt);
-
-    if ($new_signed === $signed_string) {
-      return $parts[0];
-    }
-
-    return false;
-  }
 }

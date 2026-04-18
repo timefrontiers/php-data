@@ -10,20 +10,21 @@ namespace TimeFrontiers\Data;
  * Key resolution priority:
  * 1. Constructor injection (raw key or file path)
  * 2. Static setKeyFile() configuration
- * 3. Fallback to legacy location: PRJ_ROOT/.system/appdata/tymfrontiers-cdn/php-data/data.key
- * 4. Auto-generate if nothing exists
+ *
+ * A key MUST be provided via one of these paths — there is no implicit
+ * fallback location and no auto-generation.
  *
  * Usage:
- *   // New style (instance)
+ *   // Instance with file path or raw base64 key
  *   $enc = new Encryption('/secure/path/my.key');
  *   $encrypted = $enc->encrypt($data);
  *
- *   // Or with raw key
- *   $enc = new Encryption(key: $base64_key);
- *
- *   // Legacy style (static config)
+ *   // Static configuration (set once at bootstrap)
  *   Encryption::setKeyFile('/secure/path/my.key');
  *   $encrypted = Encryption::enc($data);
+ *
+ *   // Generate a fresh key for a new project
+ *   $key = Encryption::generateKey();
  */
 class Encryption {
 
@@ -43,8 +44,9 @@ class Encryption {
   }
 
   /**
-   * Configure key file for static/legacy usage.
-   * Call once at bootstrap.
+   * Configure the key used by the static `enc()` / `dec()` helpers.
+   * Call once at bootstrap. Accepts either a raw base64 key or a path
+   * to a file containing one.
    */
   public static function setKeyFile(string $key_or_file):void {
     if (\file_exists($key_or_file) && \is_readable($key_or_file)) {
@@ -136,10 +138,10 @@ class Encryption {
     return \base64_encode(\openssl_random_pseudo_bytes(32));
   }
 
-  // === Static methods for legacy/facade usage ===
+  // === Static convenience methods (use the key set via setKeyFile) ===
 
   /**
-   * Static encrypt (uses configured key).
+   * Static encrypt (uses the key configured via setKeyFile).
    */
   public static function enc(string $data, ?string $key = null):string {
     $instance = new self();
@@ -157,10 +159,11 @@ class Encryption {
   // === Private methods ===
 
   /**
-   * Resolve key from various sources.
+   * Resolve key from the explicit argument or static configuration.
+   * Throws when no key is available — callers must configure one.
    */
   private function _resolveKey(?string $key):string {
-    // 1. Explicit key provided
+    // 1. Explicit key provided (raw or file path)
     if ($key !== null) {
       if (\file_exists($key) && \is_readable($key)) {
         return self::_readKeyFile($key);
@@ -173,52 +176,9 @@ class Encryption {
       return self::$_static_key;
     }
 
-    // 3. Fallback to legacy location
-    return $this->_loadLegacyKey();
-  }
-
-  /**
-   * Load key from legacy file location.
-   */
-  private function _loadLegacyKey():string {
-    $prj_root = $this->_getProjectRoot();
-    $key_file = $prj_root . '/.system/appdata/timefrontiers/php-data/data.key';
-
-    if (\file_exists($key_file) && \is_readable($key_file)) {
-      $key = self::_readKeyFile($key_file);
-      self::$_static_key = $key;
-      self::$_static_key_file = $key_file;
-      return $key;
-    }
-
-    // Auto-generate
-    return $this->_generateAndSaveKey($key_file);
-  }
-
-  /**
-   * Generate a new key and save to file.
-   */
-  private function _generateAndSaveKey(string $key_file):string {
-    $dir = \dirname($key_file);
-
-    if (!\file_exists($dir)) {
-      if (!\mkdir($dir, 0700, true)) {
-        throw new \RuntimeException("Cannot create key directory: {$dir}");
-      }
-    }
-
-    $key = self::generateKey();
-
-    if (\file_put_contents($key_file, $key) === false) {
-      throw new \RuntimeException("Cannot write key file: {$key_file}");
-    }
-
-    \chmod($key_file, 0600);
-
-    self::$_static_key = $key;
-    self::$_static_key_file = $key_file;
-
-    return $key;
+    throw new \RuntimeException(
+      'Encryption key not configured. Pass a key to the constructor or call Encryption::setKeyFile() at bootstrap.'
+    );
   }
 
   /**
@@ -230,35 +190,7 @@ class Encryption {
       throw new \RuntimeException("Cannot read key file: {$path}");
     }
 
-    // Clean up (remove <?php if present, trim whitespace)
-    $key = \trim(\str_replace('<?php', '', $content));
-
-    return $key;
-  }
-
-  /**
-   * Get project root directory.
-   */
-  private function _getProjectRoot():string {
-    // Check for helper functions
-    if (\function_exists('\Catali\get_constant')) {
-      $root = \Catali\get_constant('PRJ_ROOT');
-      if ($root) return $root;
-    }
-
-    if (\function_exists('\get_constant')) {
-      $root = \get_constant('PRJ_ROOT');
-      if ($root) return $root;
-    }
-
-    // Check constant directly
-    if (\defined('PRJ_ROOT')) {
-      return PRJ_ROOT;
-    }
-
-    throw new \RuntimeException(
-      "PRJ_ROOT not defined. Either define PRJ_ROOT constant or provide key/key_file explicitly."
-    );
+    return \trim($content);
   }
 
   /**
