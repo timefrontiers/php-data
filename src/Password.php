@@ -24,7 +24,7 @@ class Password {
   public const ALGO_ARGON2I = PASSWORD_ARGON2I;
   public const ALGO_BCRYPT = PASSWORD_BCRYPT;
 
-  private static int $_algorithm = PASSWORD_ARGON2ID;
+  private static string|int|null $_algorithm = PASSWORD_ARGON2ID;
   private static array $_options = [];
 
   /**
@@ -40,7 +40,7 @@ class Password {
    * For bcrypt:
    *   Password::configure(Password::ALGO_BCRYPT, ['cost' => 12]);
    */
-  public static function configure(int $algorithm, array $options = []):void {
+  public static function configure(string|int|null $algorithm, array $options = []):void {
     self::$_algorithm = $algorithm;
     self::$_options = $options;
   }
